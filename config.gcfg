@@ -1,0 +1,5 @@
+; Comment line
+[Gateway]
+Server = localhost
+Port = 8080
+Timeout = 30
