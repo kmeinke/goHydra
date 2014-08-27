@@ -7,7 +7,8 @@ import (
 	"code.google.com/p/gcfg"
 	"os"
 	"os/signal"
-	"syscall"	
+	"syscall"
+	"flag"
 )
 
 
@@ -18,6 +19,8 @@ type Config struct {
 		Timeout string
 	}
 }
+
+var configFile *string = flag.String("c", "config.gcfg", "path to config file")
 
 // hello world, the web server
 func HelloServer(w http.ResponseWriter, req *http.Request) {
@@ -44,9 +47,9 @@ func handleOsSignals () {
 	}()
 }
 
-func loadConfig () Config {
+func loadConfig (c string) Config {
 	var cfg Config
-	err := gcfg.ReadFileInto(&cfg, "config.gcfg")
+	err := gcfg.ReadFileInto(&cfg, c)
 	if err != nil {
 		log.Fatal("Could't load config file")
 	}
@@ -54,23 +57,28 @@ func loadConfig () Config {
 	return cfg
 }
 
+
 func main() {
 	var err error
-
-//knt:setup os signal handling to exit the programm	
-	handleOsSignals()
 
 //knt: server is up
 	log.Print("Starting")
 
+//knt:get arguments
+    flag.Parse()
+    log.Printf("Using config file: %s", *configFile)
+
+//knt:setup os signal handling to exit the programm	
+	handleOsSignals()
+
 //knt: parse config
-	cfg := loadConfig ()
+	cfg := loadConfig (*configFile)
 
 //knt:set handler
 	http.HandleFunc("/hello", HelloServer)
 
 //knt:listen 
-	log.Printf("Listening on %s:%s ...", cfg.Gateway.Server, cfg.Gateway.Port)
+	log.Printf("Listening on: %s:%s ...", cfg.Gateway.Server, cfg.Gateway.Port)
 	err = http.ListenAndServe(cfg.Gateway.Server + ":" + cfg.Gateway.Port, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
