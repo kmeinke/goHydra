@@ -3,6 +3,8 @@ package demon
 import (
 	"log"
 	"os"
+	"syscall"
+	"os/signal"
 
 )
 
@@ -23,17 +25,17 @@ func NewDemon(isInherited bool) (*Demon) {
 	return nil
 }
 
-//start this instance as a new process - wtf?
-func (*Demon) Start() {}
+//terminate this instance ASAP - ungracefully but clean
+func (*Demon) Terminate() {}
 
-//stop this instance - if gracefull = true, node finish pending work befor stopping
-func (*Demon) Stop(beGracefull bool) {}
+//shutdown this instance - node finish pending work befor terminating
+func (*Demon) Shutdown() {}
 
-//reload configuration - if gracefull = true, new configuration apply only to new work
-func (*Demon) Reload(beGracefull bool) {}
+//reload configuration - new configuration apply only to new work
+func (*Demon) Reload() {}
 
-//restart this instance as a new process - if gracefull = true, node finish pending work befor stopping
-func (*Demon) Restart(beGracefull bool) {}
+//restart this instance as a new process - node finish pending work befor stopping
+func (*Demon) Restart() {}
 
 /**/
 
@@ -58,8 +60,41 @@ func (*Demon) RemWorker(wid workerId) (*GracefullWorker) {
 
 /**/
 
+//Signals and their meaning
+const (
+	TERMINATE = syscall.SIGTERM //Terminating ungracefully but clean
+	SHUTDOWN = syscall.SIGQUIT //Gracyfully shuting down
+	RELOAD = syscall.SIGHUP //Reloading Configuration, Starting new Worker, gracefully Shutdown old worker
+	RESTART = syscall.SIGINT //Restarting gracefully //
+)
+
 //starts a go routine to listen to signals about start, stop, reload and restart
-func (*Demon) handleSignals() {}
+func (d *Demon) handleSignals() {
+    //connect channel with signal
+    ch := make(chan os.Signal, 2)
+    signal.Notify(ch, TERMINATE,SHUTDOWN,RELOAD,RESTART)
+
+    //listen for signals and handle them
+    go func(c chan os.Signal) {
+        sig := <-c
+        switch sig {
+        	case TERMINATE:
+        		log.Printf("Caught signal %s: Terminating ungracefully but clean",sig)
+        		d.Terminate()
+        	case SHUTDOWN:
+        		log.Printf("Caught signal %s: Gracyfully shuting down",sig)
+        		d.Shutdown()
+        	case RELOAD:
+        		log.Printf("Caught signal %s: Reloading Configuration, Starting new Worker, gracefully Shutdown old worker",sig)
+        		d.Reload()
+        	case RESTART:
+        		log.Printf("Caught signal %s: Restarting gracefully",sig)
+        		d.Restart()
+        	default:
+        		log.Printf("Can't handle signal %s: just living on",sig)
+        }
+    }(ch)
+}
 
 //kills parent process after restart
 func (*Demon) terminateParent() {}
