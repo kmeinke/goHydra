@@ -10,14 +10,21 @@ import (
 
 type workerId interface{} //dont know the type yet
 
+type Configuration struct {
+
+}
+
 //thats a Worker with a gracefull shotdown
 type GracefullWorker struct {
 	wid workerId
+	config *Configuration
 	Do func()
 }
 
 //thats the Demon - it holds all the state of the Demon, and ALL of it can be inherited by a parent killing child monster
 type Demon struct {
+	workers map[workerId] *GracefullWorker
+	files map[string] *os.File
 }
 
 //setup state at start & restart. Also inherit state from parent <. that is the load state
