@@ -8,18 +8,6 @@ import (
 
 )
 
-type workerId interface{} //dont know the type yet
-
-type Configuration struct {
-
-}
-
-//thats a Worker with a gracefull shotdown
-type GracefullWorker struct {
-	wid workerId
-	config *Configuration
-	Do func()
-}
 
 //thats the Demon - it holds all the state of the Demon, and ALL of it can be inherited by a parent killing child monster
 type Demon struct {
@@ -29,7 +17,7 @@ type Demon struct {
 
 //setup state at start & restart. Also inherit state from parent <. that is the load state
 func NewDemon(isInherited bool) (*Demon) {
-	return nil
+    return &Demon{}
 }
 
 //terminate this instance ASAP - ungracefully but clean
@@ -91,14 +79,12 @@ func (d *Demon) handleSignals() {
         	case SHUTDOWN:
         		log.Printf("Caught signal %s: Gracyfully shuting down",sig)
         		d.Shutdown()
+            case RESTART:
+                log.Printf("Caught signal %s: Restarting gracefully",sig)
+                d.Restart()                
         	case RELOAD:
-        		log.Printf("Caught signal %s: Reloading Configuration, Starting new Worker, gracefully Shutdown old worker",sig)
+        		log.Printf("Caught signal %s: Reloading Configuration, gracefully restarting workers",sig)
         		d.Reload()
-        	case RESTART:
-        		log.Printf("Caught signal %s: Restarting gracefully",sig)
-        		d.Restart()
-        	default:
-        		log.Printf("Can't handle signal %s: just living on",sig)
         }
     }(ch)
 }
