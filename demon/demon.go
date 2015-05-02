@@ -11,14 +11,22 @@ import (
 
 //thats the Demon - it holds all the state of the Demon, and ALL of it can be inherited by a parent killing child monster
 type Demon struct {
+    isInherited bool
 	workers map[workerId] *GracefullWorker
 	files map[string] *os.File
+    cleanUp func()
 }
 
 //setup state at start & restart. Also inherit state from parent <. that is the load state
-func NewDemon(isInherited bool) (*Demon) {
-    return &Demon{}
+func NewDemon (isInherited bool, cleanUp *func()) (*Demon) {
+    d := Demon{}
+    d.cleanUp = *cleanUp
+    d.isInherited = isInherited
+    return &d
 }
+
+//start all workers as goroutine
+func (*Demon) Start() {}
 
 //terminate this instance ASAP - ungracefully but clean
 func (*Demon) Terminate() {}
