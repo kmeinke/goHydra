@@ -6,8 +6,7 @@ import (
 	"errors"
 	"io"
 	"sync"
-
-	"github.com/kmeinke/hydra/container"
+	"time"
 )
 
 //thread save pool of sessions
@@ -15,14 +14,15 @@ type Manager struct {
 	sessions map[string]*session //map of all sessions
 	l        sync.Mutex
 	strength int
+	timeout	 time.Duration
 }
 
 //Initialize the SessionManager - Strength is the number of bytes from the number generator - Resulting SessionID will be twice as long due to hex encoding
-func NewManager(strength int) *Manager {
+func NewManager(strength int, timeout time.Duration) *Manager {
 	m := new(Manager)
 	m.sessions = make(map[string]*session)
 	m.strength = strength
-	m.mapkeys  = container.NewQueue()
+	m.timeout  = timeout
 	return m
 }
 
@@ -32,8 +32,12 @@ func (m *Manager) Create() (*session, error) {
 	if _, err := io.ReadFull(rand.Reader, b); err != nil {
 		return nil, errors.New("could't create sessionID")
 	}
+
 	sid := hex.EncodeToString(b)
-	s := session{sessionID: sid}
+	now := time.Now()
+	valid := now.Add(m.timeout)
+
+	s := session{sessionID: sid, createdAt: now, validUntil: valid, test: "aa"}
 
 	//test if sessionId already exists
 	_, err := m.Get(sid)
@@ -52,8 +56,8 @@ func (m *Manager) Create() (*session, error) {
 //destroy a session - always returns nill
 func (m *Manager) Destroy(sid string) {
 	m.l.Lock()
+	defer m.l.Unlock()
 	delete(m.sessions, sid)
-	m.l.Unlock()
 }
 
 //get a existing session - returns error if session pool is empty, or given sid could not be found
@@ -65,13 +69,21 @@ func (m *Manager) Get(sid string) (*session, error) {
 		return nil, errors.New("session pool is empty")
 	}
 
-	if s, ok := m.sessions[sid]; ok {
-		return s, nil
-	} else {
+	if s, ok := m.sessions[sid]; !ok { //session not there!
 		return nil, errors.New("could't find session")
+	} else if time.Now().After(s.validUntil) { //session time out!
+		delete(m.sessions, s.sessionID)
+		return nil, errors.New("could't find session")
+	} else { //session! :)
+		return s, nil	
 	}
 }
 
-func (m *Manager) destroyDeadSession() error {
-	return nil
+func (m *Manager) String() string {
+	out := "{[";
+	for k := range m.sessions {
+		out += m.sessions[k].String() + ","
+	}
+	out += "]}"
+	return out
 }
